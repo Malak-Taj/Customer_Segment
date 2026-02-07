@@ -3,15 +3,22 @@ import streamlit as st
 import pandas as pd
 import joblib
 from sklearn.neighbors import NearestNeighbors
+from pathlib import Path
+import sys
+
+# Paths
+BASE_DIR = Path(__file__).resolve().parent.parent 
+sys.path.append(str(BASE_DIR))
 from scr.inference import run_dbscan_inference  # inference function
 
-# paths
-scaler_pipeline_path = "Models/scaler_pipeline.pkl"
-numeric_meta_path = "Metadata/numeric_columns.pkl"
-cat_meta_path = "Metadata/cat_cols.pkl"
-clustered_data_path = "Data/Clean_data/customer_data_with_clusters.parquet"
+# Paths
+scaler_pipeline_path = BASE_DIR / "Models" / "scaler_pipeline.pkl"
+numeric_meta_path = BASE_DIR / "Metadata" / "numeric_columns.pkl"
+cat_meta_path = BASE_DIR / "Metadata" / "cat_cols.pkl"
+clustered_data_path = BASE_DIR / "Data" / "Clean_data" / "customer_data_with_clusters.parquet"
 
-# Load Data 
+
+# Load Data
 df_clustered = pd.read_parquet(clustered_data_path)
 numeric_columns = joblib.load(numeric_meta_path)
 cat_cols = joblib.load(cat_meta_path)
@@ -23,18 +30,18 @@ for cluster in cluster_profile.index:
     sorted_merchants = cluster_profile.loc[cluster].sort_values(ascending=False).index.tolist()
     top_merchants[cluster] = sorted_merchants[:3]
 
-# Streamlit UI
+# Streamlit
 st.title("Customer Cluster Prediction & Merchant Recommendation")
 st.write("Enter customer information:")
 
-#User Inputs 
+# User Inputs
 customer_age_months = st.number_input("Customer Age (days)", value=30)
 trx_age = st.number_input("Transaction Age (days)", value=12)
 trx_vlu = st.number_input("Transaction Value ($)", value=5000)
 
 if st.button("Predict Cluster & Recommend Merchants"):
 
-    #  Find nearest existing customer for missing features
+    # Find nearest existing customer for missing features
     nn_features = ['Customer_Age', 'Trx_Age', 'Trx_Vlu']
     X_train = df_clustered[nn_features].values
 
@@ -44,7 +51,7 @@ if st.button("Predict Cluster & Recommend Merchants"):
     dist, idx = nn_model.kneighbors(new_customer_features)
     nearest_customer = df_clustered.iloc[idx[0][0]]
 
-    #  Build complete input
+    # Build complete input
     df_new = pd.DataFrame([{
         'Customer_Age': customer_age_months,
         'Trx_Age': trx_age,
@@ -58,7 +65,7 @@ if st.button("Predict Cluster & Recommend Merchants"):
         'Other': nearest_customer['Other']
     }])
 
-    #  Run Inference 
+    # Run inference
     clustered_df = run_dbscan_inference(
         df_new=df_new,
         scaler_path=scaler_pipeline_path,
